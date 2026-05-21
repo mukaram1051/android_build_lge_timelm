@@ -15,14 +15,13 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 1440  # 24 hours
+    timeout-minutes: 1440
 
     steps:
       - name: Maximize disk space
         uses: easimon/maximize-build-space@master
         with:
-          root-reserve-mb: 4096
-          temp-reserve-mb: 4096
+          root-reserve-mb: 8192
           swap-size-mb: 8192
           remove-dotnet: 'true'
           remove-android: 'true'
@@ -42,8 +41,8 @@ jobs:
 
       - name: Configure git
         run: |
-          git config --global user.email "build@crdroid.net"
-          git config --global user.name "crDroid Builder"
+          git config --global user.email "mukaram1051@gmail.com"
+          git config --global user.name "Mukaram"
           git lfs install
 
       - name: Setup ccache
@@ -69,34 +68,27 @@ jobs:
       - name: Add local manifest
         run: |
           mkdir -p ~/crDroid/.repo/local_manifests
-          cat > ~/crDroid/.repo/local_manifests/timelm.xml << 'EOF'
+          cat > ~/crDroid/.repo/local_manifests/timelm.xml << 'MANIFEST'
           <?xml version="1.0" encoding="UTF-8"?>
           <manifest>
-            <!-- Device Tree -->
             <project name="mukaram1051/device_lge_timelm"
                      path="device/lge/timelm"
                      remote="github"
                      revision="lineage-21.0" />
-
-            <!-- Common Device Tree -->
             <project name="mukaram1051/device_lge_sm8250-common"
                      path="device/lge/sm8250-common"
                      remote="github"
                      revision="lineage-21.0" />
-
-            <!-- Vendor -->
             <project name="mukaram1051/vendor_lge_timelm"
                      path="vendor/lge/timelm"
                      remote="github"
                      revision="main" />
-
-            <!-- Kernel -->
             <project name="AlcatrazDev-Android-Devices/kernel_lge_sm8250"
                      path="kernel/lge/sm8250"
                      remote="github"
                      revision="main" />
           </manifest>
-          EOF
+          MANIFEST
 
       - name: Sync source
         run: |
@@ -108,23 +100,14 @@ jobs:
       - name: Apply crDroid device tree patches
         run: |
           cd ~/crDroid/device/lge/timelm
-
-          # Rename lineage_timelm.mk to crdroid_timelm.mk if needed
           if [ -f "lineage_timelm.mk" ] && [ ! -f "crdroid_timelm.mk" ]; then
             cp lineage_timelm.mk crdroid_timelm.mk
-            # Update internal references
             sed -i 's/lineage_timelm/crdroid_timelm/g' crdroid_timelm.mk
             sed -i 's/LINEAGE_/CRDROID_/g' crdroid_timelm.mk
           fi
-
-          # Update AndroidProducts.mk
           if grep -q "lineage_timelm.mk" AndroidProducts.mk; then
             sed -i 's/lineage_timelm.mk/crdroid_timelm.mk/g' AndroidProducts.mk
           fi
-
-          # Update inheritance in crdroid_timelm.mk
-          sed -i 's/\$(call inherit-product.*lineage_core_dynamic_partitions.*/$(call inherit-product, vendor\/crdroid\/config\/crdroid.mk)/g' \
-            crdroid_timelm.mk 2>/dev/null || true
 
       - name: Setup build environment variables
         run: |
@@ -141,31 +124,29 @@ jobs:
           lunch crdroid_timelm-${{ github.event.inputs.BUILD_TYPE }}
           mka bacon -j$(nproc --all)
 
-      - name: Find and upload output
+      - name: Find output ZIP
         run: |
           cd ~/crDroid
           OUT_FILE=$(find out/target/product/timelm/ \
             -name "crDroid*timelm*.zip" 2>/dev/null | head -1)
-
           if [ -z "$OUT_FILE" ]; then
             OUT_FILE=$(find out/target/product/timelm/ \
               -name "*.zip" -not -name "*ota*" 2>/dev/null | head -1)
           fi
-
-          echo "Found: $OUT_FILE"
           echo "OUT_ZIP=$OUT_FILE" >> $GITHUB_ENV
 
-      - name: Upload ROM zip
+      - name: Upload ROM
         uses: actions/upload-artifact@v4
         with:
-          name: crDroid-16.0-LGV60-timelm
+          name: crDroid-16.0-LGV60-By-Mukaram
           path: ${{ env.OUT_ZIP }}
           retention-days: 7
 
-      - name: Upload build log on failure
+      - name: Upload log on failure
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: build-log-failure
           path: ~/crDroid/out/error.log
           retention-days: 3
+          
