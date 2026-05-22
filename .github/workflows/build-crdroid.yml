@@ -21,12 +21,13 @@ jobs:
       - name: Maximize disk space
         uses: easimon/maximize-build-space@master
         with:
-          root-reserve-mb: 8192
-          swap-size-mb: 8192
+          root-reserve-mb: 4096
+          swap-size-mb: 10240
           remove-dotnet: 'true'
           remove-android: 'true'
           remove-haskell: 'true'
           remove-codeql: 'true'
+          remove-docker-images: 'true'
 
       - name: Setup build environment
         run: |
@@ -35,11 +36,10 @@ jobs:
             bc bison build-essential ccache curl flex \
             g++-multilib gcc-multilib git git-lfs gnupg gperf \
             imagemagick lib32readline-dev lib32z1-dev \
-            liblz4-tool libncurses5-dev libsdl1.2-dev \
+            libncurses-dev lib32ncurses-dev libsdl1.2-dev \
             libssl-dev libxml2 libxml2-utils lzop pngcrush \
             rsync schedtool squashfs-tools xsltproc zip \
-            zlib1g-dev python3 python3-pip openjdk-17-jdk \
-            libncurses-dev lib32ncurses-dev repo
+            zlib1g-dev python3 python3-pip openjdk-17-jdk repo
 
       - name: Configure git
         run: |
@@ -50,7 +50,7 @@ jobs:
       - name: Setup ccache
         run: |
           echo "CCACHE_DIR=$HOME/.ccache" >> $GITHUB_ENV
-          ccache -M 10G
+          ccache -M 5G
 
       - name: Restore ccache
         uses: actions/cache@v3
@@ -64,6 +64,91 @@ jobs:
         run: |
           mkdir -p ~/crDroid
           cd ~/crDroid
+          repo init -u https://github.com/crdroidandroid/android.git -b 16.0 \
+            --no-clone-bundle --depth=1 -g default,-notdefault
+
+      - name: Add local manifest
+        run: |
+          mkdir -p ~/crDroid/.repo/local_manifests
+          cat > ~/crDroid/.repo/local_manifests/timelm.xml << 'MANIFEST'
+<?xml version="1.0" encoding="UTF-8"?>
+<manifest>
+  <project name="hanyg6266/device_lge_timelm"
+           path="device/lge/timelm"
+           remote="github"
+           revision="lineage-22.1" />
+  <project name="hanyg6266/device_lge_sm8250-common"
+           path="device/lge/sm8250-common"
+           remote="github"
+           revision="lineage-22.1" />
+  <project name="AlcatrazDev-Android-Devices/vendor_lge_timelm"
+           path="vendor/lge/timelm"
+           remote="github"
+           revision="lineage-21.0" />
+  <project name="AlcatrazDev-Android-Devices/vendor_lge_sm8250-common"
+           path="vendor/lge/sm8250-common"
+           remote="github"
+           revision="lineage-21.0" />
+  <project name="hanyg6266/kernel_lge_sm8250"
+           path="kernel/lge/sm8250"
+           remote="github"
+           revision="lineage-22.1" />
+</manifest>
+MANIFEST
+
+      - name: Sync source
+        run: |
+          cd ~/crDroid
+          repo sync -c --no-clone-bundle --no-tags \
+            --optimized-fetch --prune --force-sync \
+            --depth=1 \
+            -j${{ github.event.inputs.SYNC_THREADS }}
+
+      - name: Apply crDroid patches
+        run: |
+          cd ~/crDroid/device/lge/timelm
+          if [ -f "lineage_timelm.mk" ] && [ ! -f "crdroid_timelm.mk" ]; then
+            cp lineage_timelm.mk crdroid_timelm.mk
+            sed -i 's/lineage_timelm/crdroid_timelm/g' crdroid_timelm.mk
+            sed -i 's/LINEAGE_/CRDROID_/g' crdroid_timelm.mk
+          fi
+          if grep -q "lineage_timelm.mk" AndroidProducts.mk; then
+            sed -i 's/lineage_timelm.mk/crdroid_timelm.mk/g' AndroidProducts.mk
+          fi
+
+      - name: Build crDroid
+        run: |
+          cd ~/crDroid
+          export USE_CCACHE=1
+          export CCACHE_EXEC=$(which ccache)
+          source build/envsetup.sh
+          lunch crdroid_timelm-${{ github.event.inputs.BUILD_TYPE }}
+          mka bacon -j$(nproc --all)
+
+      - name: Find output ZIP
+        run: |
+          OUT_FILE=$(find ~/crDroid/out/target/product/timelm/ \
+            -name "crDroid*timelm*.zip" 2>/dev/null | head -1)
+          if [ -z "$OUT_FILE" ]; then
+            OUT_FILE=$(find ~/crDroid/out/target/product/timelm/ \
+              -name "*.zip" -not -name "*ota*" 2>/dev/null | head -1)
+          fi
+          echo "OUT_ZIP=$OUT_FILE" >> $GITHUB_ENV
+
+      - name: Upload ROM
+        uses: actions/upload-artifact@v4
+        with:
+          name: crDroid-16.0-LGV60-By-Mukaram
+          path: ${{ env.OUT_ZIP }}
+          retention-days: 7
+
+      - name: Upload log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log-failure
+          path: ~/crDroid/out/error.log
+          retention-days: 3
           repo init -u https://github.com/crdroidandroid/android.git -b 16.0 \
             --git-lfs --no-clone-bundle --depth=1
 
