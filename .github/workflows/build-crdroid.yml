@@ -61,16 +61,14 @@ jobs:
       - name: Add local manifest
         run: |
           mkdir -p ~/crDroid/.repo/local_manifests
-          cat > ~/crDroid/.repo/local_manifests/timelm.xml << 'EOF'
-          <?xml version="1.0" encoding="UTF-8"?>
-          <manifest>
-            <project name="hanyg6266/device_lge_timelm" path="device/lge/timelm" remote="github" revision="lineage-22.1" />
-            <project name="hanyg6266/device_lge_sm8250-common" path="device/lge/sm8250-common" remote="github" revision="lineage-22.1" />
-            <project name="AlcatrazDev-Android-Devices/vendor_lge_timelm" path="vendor/lge/timelm" remote="github" revision="lineage-21.0" />
-            <project name="AlcatrazDev-Android-Devices/vendor_lge_sm8250-common" path="vendor/lge/sm8250-common" remote="github" revision="lineage-21.0" />
-            <project name="hanyg6266/kernel_lge_sm8250" path="kernel/lge/sm8250" remote="github" revision="lineage-22.1" />
-          </manifest>
-          EOF
+          echo '<?xml version="1.0" encoding="UTF-8"?>' > ~/crDroid/.repo/local_manifests/timelm.xml
+          echo '<manifest>' >> ~/crDroid/.repo/local_manifests/timelm.xml
+          echo '  <project name="hanyg6266/device_lge_timelm" path="device/lge/timelm" remote="github" revision="lineage-22.1" />' >> ~/crDroid/.repo/local_manifests/timelm.xml
+          echo '  <project name="hanyg6266/device_lge_sm8250-common" path="device/lge/sm8250-common" remote="github" revision="lineage-22.1" />' >> ~/crDroid/.repo/local_manifests/timelm.xml
+          echo '  <project name="AlcatrazDev-Android-Devices/vendor_lge_timelm" path="vendor/lge/timelm" remote="github" revision="lineage-21.0" />' >> ~/crDroid/.repo/local_manifests/timelm.xml
+          echo '  <project name="AlcatrazDev-Android-Devices/vendor_lge_sm8250-common" path="vendor/lge/sm8250-common" remote="github" revision="lineage-21.0" />' >> ~/crDroid/.repo/local_manifests/timelm.xml
+          echo '  <project name="hanyg6266/kernel_lge_sm8250" path="kernel/lge/sm8250" remote="github" revision="lineage-22.1" />' >> ~/crDroid/.repo/local_manifests/timelm.xml
+          echo '</manifest>' >> ~/crDroid/.repo/local_manifests/timelm.xml
 
       - name: Sync source
         run: |
