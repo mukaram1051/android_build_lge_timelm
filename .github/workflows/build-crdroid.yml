@@ -32,14 +32,7 @@ jobs:
       - name: Setup build environment
         run: |
           sudo apt-get update -y
-          sudo apt-get install -y \
-            bc bison build-essential ccache curl flex \
-            g++-multilib gcc-multilib git git-lfs gnupg gperf \
-            imagemagick lib32readline-dev lib32z1-dev \
-            libncurses-dev lib32ncurses-dev libsdl1.2-dev \
-            libssl-dev libxml2 libxml2-utils lzop pngcrush \
-            rsync schedtool squashfs-tools xsltproc zip \
-            zlib1g-dev python3 python3-pip openjdk-17-jdk repo
+          sudo apt-get install -y bc bison build-essential ccache curl flex g++-multilib gcc-multilib git git-lfs gnupg gperf imagemagick lib32readline-dev lib32z1-dev libncurses-dev lib32ncurses-dev libsdl1.2-dev libssl-dev libxml2 libxml2-utils lzop pngcrush rsync schedtool squashfs-tools xsltproc zip zlib1g-dev python3 python3-pip openjdk-17-jdk repo
 
       - name: Configure git
         run: |
@@ -57,52 +50,32 @@ jobs:
         with:
           path: ~/.ccache
           key: ccache-crdroid-timelm-${{ github.sha }}
-          restore-keys: |
-            ccache-crdroid-timelm-
+          restore-keys: ccache-crdroid-timelm-
 
       - name: Initialize crDroid 16.0 source
         run: |
           mkdir -p ~/crDroid
           cd ~/crDroid
-          repo init -u https://github.com/crdroidandroid/android.git -b 16.0 \
-            --no-clone-bundle --depth=1 -g default,-notdefault
+          repo init -u https://github.com/crdroidandroid/android.git -b 16.0 --no-clone-bundle --depth=1
 
       - name: Add local manifest
         run: |
           mkdir -p ~/crDroid/.repo/local_manifests
-          cat > ~/crDroid/.repo/local_manifests/timelm.xml << 'MANIFEST'
-<?xml version="1.0" encoding="UTF-8"?>
-<manifest>
-  <project name="hanyg6266/device_lge_timelm"
-           path="device/lge/timelm"
-           remote="github"
-           revision="lineage-22.1" />
-  <project name="hanyg6266/device_lge_sm8250-common"
-           path="device/lge/sm8250-common"
-           remote="github"
-           revision="lineage-22.1" />
-  <project name="AlcatrazDev-Android-Devices/vendor_lge_timelm"
-           path="vendor/lge/timelm"
-           remote="github"
-           revision="lineage-21.0" />
-  <project name="AlcatrazDev-Android-Devices/vendor_lge_sm8250-common"
-           path="vendor/lge/sm8250-common"
-           remote="github"
-           revision="lineage-21.0" />
-  <project name="hanyg6266/kernel_lge_sm8250"
-           path="kernel/lge/sm8250"
-           remote="github"
-           revision="lineage-22.1" />
-</manifest>
-MANIFEST
+          cat > ~/crDroid/.repo/local_manifests/timelm.xml << 'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <manifest>
+            <project name="hanyg6266/device_lge_timelm" path="device/lge/timelm" remote="github" revision="lineage-22.1" />
+            <project name="hanyg6266/device_lge_sm8250-common" path="device/lge/sm8250-common" remote="github" revision="lineage-22.1" />
+            <project name="AlcatrazDev-Android-Devices/vendor_lge_timelm" path="vendor/lge/timelm" remote="github" revision="lineage-21.0" />
+            <project name="AlcatrazDev-Android-Devices/vendor_lge_sm8250-common" path="vendor/lge/sm8250-common" remote="github" revision="lineage-21.0" />
+            <project name="hanyg6266/kernel_lge_sm8250" path="kernel/lge/sm8250" remote="github" revision="lineage-22.1" />
+          </manifest>
+          EOF
 
       - name: Sync source
         run: |
           cd ~/crDroid
-          repo sync -c --no-clone-bundle --no-tags \
-            --optimized-fetch --prune --force-sync \
-            --depth=1 \
-            -j${{ github.event.inputs.SYNC_THREADS }}
+          repo sync -c --no-clone-bundle --no-tags --optimized-fetch --prune --force-sync --depth=1 -j${{ github.event.inputs.SYNC_THREADS }}
 
       - name: Apply crDroid patches
         run: |
@@ -127,11 +100,9 @@ MANIFEST
 
       - name: Find output ZIP
         run: |
-          OUT_FILE=$(find ~/crDroid/out/target/product/timelm/ \
-            -name "crDroid*timelm*.zip" 2>/dev/null | head -1)
+          OUT_FILE=$(find ~/crDroid/out/target/product/timelm/ -name "crDroid*timelm*.zip" 2>/dev/null | head -1)
           if [ -z "$OUT_FILE" ]; then
-            OUT_FILE=$(find ~/crDroid/out/target/product/timelm/ \
-              -name "*.zip" -not -name "*ota*" 2>/dev/null | head -1)
+            OUT_FILE=$(find ~/crDroid/out/target/product/timelm/ -name "*.zip" -not -name "*ota*" 2>/dev/null | head -1)
           fi
           echo "OUT_ZIP=$OUT_FILE" >> $GITHUB_ENV
 
